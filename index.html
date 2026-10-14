@@ -422,42 +422,45 @@ main{position:relative;z-index:1}
 /* ---------- 常量定义 ---------- */
 var KEY = 'qq_treasure_v1';
 
-// 每日打卡项目
-var TASKS = {
-  rope:      { icon:'🪢', name:'跳绳 100 次' },
-  run:       { icon:'🏃', name:'跑步 1 公里' },
-  read:      { icon:'📖', name:'读一篇绘本' },
-  note:      { icon:'✏️', name:'写一个小笔记' },
-  choreSelf: { icon:'🧦', name:'自己的事情自己做' },
-  choreBag:  { icon:'🎒', name:'书包自己收拾' },
-  choreBed:  { icon:'🛏️', name:'被子自己叠' }
-};
-
-// 星种规则
-var CATS = [
-  { key:'sport',    name:'运动小明星',        icon:'🏃', color:'#5ec8ff', bg:'#e6f6ff', need:5, mode:'all', tasks:['rope','run'],      desc:'跳绳 + 跑步，连续 5 天' },
-  { key:'read',     name:'阅读智慧星',        icon:'📖', color:'#ffb14d', bg:'#fff5e3', need:5, mode:'any', tasks:['read','note'],      desc:'读绘本 或 写笔记，连续 5 天' },
-  { key:'choreSelf',name:'家务星·自己事自己做', icon:'🧦', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', tasks:['choreSelf'],       desc:'连续 7 天' },
-  { key:'choreBag', name:'家务星·书包自己收拾', icon:'🎒', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', tasks:['choreBag'],        desc:'连续 7 天' },
-  { key:'choreBed', name:'家务星·被子自己叠',   icon:'🛏️', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', tasks:['choreBed'],        desc:'连续 7 天' }
+/* 默认打卡项（首次初始化写入 S.tasks，之后以 S.tasks 为准，可在妈妈控制台增删/停用） */
+var DEFAULT_TASKS = [
+  { key:'rope',      icon:'🪢', name:'跳绳 100 次' },
+  { key:'run',       icon:'🏃', name:'跑步 1 公里' },
+  { key:'read',      icon:'📖', name:'读一篇绘本' },
+  { key:'note',      icon:'✏️', name:'写一个小笔记' },
+  { key:'choreSelf', icon:'🧦', name:'自己的事情自己做' },
+  { key:'choreBag',  icon:'🎒', name:'书包自己收拾' },
+  { key:'choreBed',  icon:'🛏️', name:'被子自己叠' }
 ];
 
-// 奖励小店
-var SHOP = [
-  { key:'tv10',   icon:'📺', title:'看电视',        multi:true, step:10, unit:'分钟', perStep:1, color:'#5ec8ff', bg:'#e6f6ff', tip:'1 颗星 = 10 分钟' },
-  { key:'yuan',   icon:'💰', title:'零花钱',        multi:true, step:1,  unit:'元',   perStep:1, color:'#ffb14d', bg:'#fff5e3', tip:'1 颗星 = 1 元' },
-  { key:'tv30',   icon:'🎬', title:'看电视 30 分钟', cost:3, color:'#b98cff', bg:'#f3ecff', tip:'一次 30 分钟，很划算哦' },
-  { key:'mall',   icon:'🎠', title:'商场游玩 1 次',  cost:3, color:'#ff9ec4', bg:'#fff0f6', tip:'周末去商场撒欢吧' },
-  { key:'travel', icon:'🚗', title:'省内旅游 1 次',  cost:10, color:'#7ee0b0', bg:'#e8fff5', tip:'最厉害的大奖，全家出动！' }
+/* 默认任务卡（星种规则）。need = 连续达标几天换 1 颗星；mode: all=全部完成 / any=任一完成 */
+var DEFAULT_CATS = [
+  { key:'sport',     name:'运动小明星',         icon:'🏃', color:'#5ec8ff', bg:'#e6f6ff', need:5, mode:'all', taskKeys:['rope','run'] },
+  { key:'read',      name:'阅读智慧星',         icon:'📖', color:'#ffb14d', bg:'#fff5e3', need:5, mode:'any', taskKeys:['read','note'] },
+  { key:'choreSelf', name:'家务星·自己事自己做', icon:'🧦', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', taskKeys:['choreSelf'] },
+  { key:'choreBag',  name:'家务星·书包自己收拾', icon:'🎒', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', taskKeys:['choreBag'] },
+  { key:'choreBed',  name:'家务星·被子自己叠',   icon:'🛏️', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', taskKeys:['choreBed'] }
 ];
+
+/* 默认奖励（可在妈妈控制台上架/下架/新增） */
+var DEFAULT_REWARDS = [
+  { key:'tv10',   icon:'📺', title:'看电视',        multi:true, step:10, unit:'分钟', perStep:1, color:'#5ec8ff', bg:'#e6f6ff', tip:'1 颗星 = 10 分钟', on:true },
+  { key:'yuan',   icon:'💰', title:'零花钱',        multi:true, step:1,  unit:'元',   perStep:1, color:'#ffb14d', bg:'#fff5e3', tip:'1 颗星 = 1 元',     on:true },
+  { key:'tv30',   icon:'🎬', title:'看电视 30 分钟', cost:3, color:'#b98cff', bg:'#f3ecff', tip:'一次 30 分钟，很划算哦', on:true },
+  { key:'mall',   icon:'🎠', title:'商场游玩 1 次',  cost:3, color:'#ff9ec4', bg:'#fff0f6', tip:'周末去商场撒欢吧', on:true },
+  { key:'travel', icon:'🚗', title:'省内旅游 1 次',  cost:10, color:'#7ee0b0', bg:'#e8fff5', tip:'最厉害的大奖，全家出动！', on:true }
+];
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
 
 var AVATARS = ['🦖','🦄','🐯','🐰','🐼','🐵','🐶','🐱','🦊','🐨','🐸','🦁','🐷','🐙','🦉','🐧'];
 
-// 按设置里的兑换比例，动态生成奖励列表
+// 可兑换奖励列表（已下架的 on===false 不出现），并按设置里的比例动态调整
 function shopItems(){
   var list = [];
-  for (var i=0;i<SHOP.length;i++){
-    var it = SHOP[i];
+  for (var i=0;i<S.rewards.length;i++){
+    var it = S.rewards[i];
+    if (it.on === false) continue;
     var o = { key:it.key, icon:it.icon, title:it.title, multi:it.multi, step:it.step, unit:it.unit, perStep:it.perStep, cost:it.cost, color:it.color, bg:it.bg, tip:it.tip };
     if (o.key === 'tv10'){ o.step = Math.max(1, +S.settings.tvMinPerStar || 10); o.tip = '1 颗星 = ' + o.step + ' 分钟'; }
     if (o.key === 'yuan'){ o.step = Math.max(1, +S.settings.yuanPerStar || 1); o.tip = '1 颗星 = ' + o.step + ' 元'; }
@@ -469,6 +472,25 @@ function shopItem(key){
   var list = shopItems();
   for (var i=0;i<list.length;i++){ if (list[i].key === key) return list[i]; }
   return null;
+}
+function rewardByKey(key){
+  for (var i=0;i<S.rewards.length;i++){ if (S.rewards[i].key === key) return S.rewards[i]; }
+  return null;
+}
+function catByKey(key){
+  for (var i=0;i<S.cats.length;i++){ if (S.cats[i].key === key) return S.cats[i]; }
+  return null;
+}
+function taskByKey(key){
+  for (var i=0;i<S.tasks.length;i++){ if (S.tasks[i].key === key) return S.tasks[i]; }
+  return null;
+}
+// 任务卡的说明文字（按包含的打卡项自动生成）
+function catDesc(cat){
+  var names = [], ks = cat.taskKeys || [];
+  for (var i=0;i<ks.length;i++){ var t = taskByKey(ks[i]); if (t) names.push(t.name); }
+  var head = names.join(cat.mode === 'any' ? ' 或 ' : ' + ');
+  return head ? (head + '，连续 ' + cat.need + ' 天') : ('连续 ' + cat.need + ' 天');
 }
 
 var CHEERS = [
@@ -510,15 +532,21 @@ function mergeDeep(def, src){
 
 /* ---------- 数据 ---------- */
 function defaultState(){
+  var tOn = {};
+  for (var i=0;i<DEFAULT_TASKS.length;i++) tOn[DEFAULT_TASKS[i].key] = true;
   return {
     v: 1,
+    updatedAt: 0,      // 最后修改时间，用于多设备同步时判断谁最新
     child: { name: '球球', avatar: '🦖' },
     settings: {
       pin: '123456',
       tvMinPerStar: 10,
       yuanPerStar: 1,
-      taskOn: { rope:true, run:true, read:true, note:true, choreSelf:true, choreBag:true, choreBed:true }
+      taskOn: tOn
     },
+    tasks: clone(DEFAULT_TASKS),      // 打卡项
+    cats: clone(DEFAULT_CATS),        // 任务卡（星种规则）
+    rewards: clone(DEFAULT_REWARDS),  // 奖励（可上架/下架/新增）
     logs: {},          // 'YYYY-MM-DD' -> { rope:true, ... }
     stars: [],         // { id, cat, icon, name, sub, value, ts }
     litRuns: {},       // catKey -> [ { runStart, len, litAt } ]
@@ -535,8 +563,10 @@ try {
 } catch(e){ S = defaultState(); }
 
 function save(){
+  S.updatedAt = Date.now();
   try { localStorage.setItem(KEY, JSON.stringify(S)); }
   catch(e){ toast('保存失败，可能是存储空间不足'); }
+  schedulePush();
 }
 
 /* ---------- 音效 ---------- */
@@ -646,7 +676,8 @@ function closeSheet(){ $('#sheetModal').classList.remove('on'); $('#sheetBody').
 function dayDone(dateStr, cat){
   var log = S.logs[dateStr];
   if (!log) return false;
-  var active = cat.tasks.filter(function(t){ return S.settings.taskOn[t] !== false; });
+  var keys = cat.taskKeys || [];
+  var active = keys.filter(function(t){ return S.settings.taskOn[t] !== false && taskByKey(t); });
   if (!active.length) return false;
   if (cat.mode === 'all') {
     for (var i=0;i<active.length;i++){ if (!log[active[i]]) return false; }
@@ -681,9 +712,9 @@ function availableOf(cat){
 
 function allAvailable(){
   var list = [];
-  for (var i=0;i<CATS.length;i++){
-    var n = availableOf(CATS[i]);
-    if (n > 0) list.push({ cat: CATS[i], n: n });
+  for (var i=0;i<S.cats.length;i++){
+    var n = availableOf(S.cats[i]);
+    if (n > 0) list.push({ cat: S.cats[i], n: n });
   }
   return list;
 }
@@ -841,8 +872,8 @@ function renderHome(){
   // 今日任务
   h += '<div class="sec"><h2>🎯 今日任务</h2><div class="line"></div></div>';
   h += '<div class="task-grid">';
-  for (var c=0;c<CATS.length;c++){
-    var cat = CATS[c];
+  for (var c=0;c<S.cats.length;c++){
+    var cat = S.cats[c];
     var st = streakOf(cat);
     var done = dayDone(today, cat);
     var can = availableOf(cat);
@@ -854,28 +885,30 @@ function renderHome(){
     h +=   '<div class="tk-tick ' + (done ? 'show' : '') + '">' + (done ? '✅' : '') + '</div>';
     h +=   '<div class="tk-icon">' + cat.icon + '</div>';
     h +=   '<div class="tk-name">' + esc(cat.name) + '</div>';
-    h +=   '<div class="tk-desc">' + esc(cat.desc) + '</div>';
+    h +=   '<div class="tk-desc">' + esc(catDesc(cat)) + '</div>';
     h +=   '<div class="tk-bar">' + dots + '</div>';
     h +=   '<div class="tk-foot"><span class="streak-num">连续 <b>' + st.len + '</b> 天</span>' + chip + '</div>';
     h += '</div>';
   }
   h += '</div>';
 
-  // 大目标
+  // 大目标（跟随「省内旅游」这个奖励；妈妈下架它后自动隐藏）
   var travel = shopItem('travel');
-  var left = travel.cost - v;
-  if (left < 0) left = 0;
-  var pct = Math.min(100, Math.round(v / travel.cost * 100));
-  h += '<div class="sec"><h2>🚗 我的大目标</h2><div class="line"></div></div>';
-  h += '<div class="goal">';
-  h +=   '<div class="goal-top"><span class="ic">🚗</span><span class="ttl">省内旅游 1 次<small>集满 10 颗星就能全家出去玩啦</small></span></div>';
-  h +=   '<div class="goal-track"><div class="goal-fill" style="width:' + Math.max(pct,6) + '%"><span class="car">' + (pct>=100?'🎉':'') + '</span></div></div>';
-  h +=   '<div class="goal-info"><span>已集 <b>' + v + '</b> 颗</span><span>' + (left > 0 ? '还差 <b>' + left + '</b> 颗' : '已经达成啦！🎉') + '</span></div>';
-  h += '</div>';
+  if (travel){
+    var left = travel.cost - v;
+    if (left < 0) left = 0;
+    var pct = Math.min(100, Math.round(v / travel.cost * 100));
+    h += '<div class="sec"><h2>🚗 我的大目标</h2><div class="line"></div></div>';
+    h += '<div class="goal">';
+    h +=   '<div class="goal-top"><span class="ic">' + travel.icon + '</span><span class="ttl">' + esc(travel.title) + '<small>集满 ' + travel.cost + ' 颗星就能实现啦</small></span></div>';
+    h +=   '<div class="goal-track"><div class="goal-fill" style="width:' + Math.max(pct,6) + '%"><span class="car">' + (pct>=100?'🎉':'') + '</span></div></div>';
+    h +=   '<div class="goal-info"><span>已集 <b>' + v + '</b> 颗</span><span>' + (left > 0 ? '还差 <b>' + left + '</b> 颗' : '已经达成啦！🎉') + '</span></div>';
+    h += '</div>';
+  }
 
   // 今日挑战提醒
   var remain = 0;
-  for (var k=0;k<CATS.length;k++){ if (!dayDone(today, CATS[k])) remain++; }
+  for (var k=0;k<S.cats.length;k++){ if (!dayDone(today, S.cats[k])) remain++; }
   if (remain > 0){
     h += '<div class="card" style="display:flex;align-items:center;gap:12px">';
     h +=   '<span style="font-size:34px">🦖</span>';
@@ -919,7 +952,7 @@ function renderVault(){
     for (var i=0;i<list.length;i++){
       var s = list[i];
       var col = '#ffe9a8';
-      for (var c=0;c<CATS.length;c++){ if (CATS[c].key === s.cat) col = CATS[c].bg; }
+      for (var c=0;c<S.cats.length;c++){ if (S.cats[c].key === s.cat) col = S.cats[c].bg; }
       var ttl = s.name + '（' + fmtCN(todayStr(new Date(s.ts))) + '）';
       for (var j=0;j<(s.value||1);j++){
         h += '<div class="wstar" style="background:' + col + '" title="' + esc(ttl) + '">' + s.icon + '</div>';
@@ -1092,7 +1125,7 @@ function renderMom(){
     var dstr = addDays(today, -i);
     var isToday = i === 0;
     var cnt = 0, tot = 0;
-    for (var c=0;c<CATS.length;c++){ tot++; if (dayDone(dstr, CATS[c])) cnt++; }
+    for (var c=0;c<S.cats.length;c++){ tot++; if (dayDone(dstr, S.cats[c])) cnt++; }
     h += '<div class="day' + (dstr === momDate ? ' on' : '') + '" onclick="setMomDate(\'' + dstr + '\')">';
     h +=   '<div class="d1">' + (isToday ? '今天' : '周' + weekdayCN(dstr)) + '</div>';
     h +=   '<div class="d2">' + (+dstr.split('-')[2]) + '日</div>';
@@ -1101,20 +1134,20 @@ function renderMom(){
   }
   h +=   '</div>';
 
-  var keys = Object.keys(TASKS);
-  for (var k=0;k<keys.length;k++){
-    var tk = keys[k];
+  for (var k=0;k<S.tasks.length;k++){
+    var tk = S.tasks[k].key;
     var on = S.logs[momDate] && S.logs[momDate][tk];
     var enabled = S.settings.taskOn[tk] !== false;
     h += '<div class="chk' + (on ? ' on' : '') + '" style="' + (enabled ? '' : 'opacity:.45') + '" onclick="' + (enabled ? 'momToggle(\'' + tk + '\')' : '') + '">';
-    h +=   '<span class="ci">' + TASKS[tk].icon + '</span>';
-    h +=   '<span class="cn">' + esc(TASKS[tk].name) + (enabled ? '' : '<small>已在设置中关闭</small>') + '</span>';
+    h +=   '<span class="ci">' + S.tasks[k].icon + '</span>';
+    h +=   '<span class="cn">' + esc(S.tasks[k].name) + (enabled ? '' : '<small>已在设置中关闭</small>') + '</span>';
     h +=   '<span class="box">' + (on ? '✓' : '') + '</span>';
     h += '</div>';
   }
   h +=   '<div class="btn-row" style="margin-top:10px">';
   h +=     '<button class="btn sm sky" onclick="momAllDone()">一键全部完成</button>';
   h +=     '<button class="btn sm ghost" onclick="momClear()">清空这一天</button>';
+  h +=     '<button class="btn sm mint" onclick="newTaskSheet()">➕ 添加任务</button>';
   h +=   '</div>';
   h += '</div>';
 
@@ -1187,18 +1220,61 @@ function renderMom(){
 
   h += '<div class="card">';
   h +=   '<div style="font-size:14px;font-weight:900;margin-bottom:10px">任务开关（关掉的项目不参与打卡）</div>';
-  var kk = Object.keys(TASKS);
-  for (var q=0;q<kk.length;q++){
-    var t2 = kk[q];
-    h += '<div class="switch"><span class="sw-t">' + TASKS[t2].icon + ' ' + esc(TASKS[t2].name) + '</span>';
-    h +=   '<span class="toggle' + (S.settings.taskOn[t2] !== false ? ' on' : '') + '" onclick="setTaskOn(\'' + t2 + '\', this)"></span></div>';
+  for (var q=0;q<S.tasks.length;q++){
+    var t2 = S.tasks[q];
+    h += '<div class="switch"><span class="sw-t">' + t2.icon + ' ' + esc(t2.name) + '</span>';
+    h +=   '<span class="toggle' + (S.settings.taskOn[t2.key] !== false ? ' on' : '') + '" onclick="setTaskOn(\'' + t2.key + '\', this)"></span></div>';
   }
+  h += '</div>';
+
+  // ------ 达标规则 ------
+  h += '<div class="sec"><h2>🎯 达标规则</h2><div class="line"></div></div>';
+  h += '<div class="card">';
+  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">每张任务卡「连续达标几天 → 点亮 1 颗星」，都可以按球球的情况随时调整。</div>';
+  for (var ci=0;ci<S.cats.length;ci++){
+    var ct = S.cats[ci];
+    h += '<div class="field"><label>' + ct.icon + ' ' + esc(ct.name) + '　连续 <b>' + ct.need + '</b> 天换 1★</label>';
+    h +=   '<div style="display:flex;gap:8px;align-items:center">';
+    h +=     '<input type="number" min="1" value="' + ct.need + '" onchange="setCatNeed(\'' + ct.key + '\', this.value)" style="flex:1">';
+    h +=     '<button class="btn sm ghost" style="flex:none" onclick="delCat(\'' + ct.key + '\')">删除</button>';
+    h +=   '</div></div>';
+  }
+  h +=   '<div class="btn-row"><button class="btn sm mint" onclick="newCatSheet()">➕ 新建任务卡</button></div>';
+  h += '</div>';
+
+  // ------ 奖励设置 ------
+  h += '<div class="sec"><h2>🎁 奖励设置</h2><div class="line"></div></div>';
+  h += '<div class="card">';
+  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">下架的奖励，球球的小店里就看不到了（已兑换的记录会保留）。</div>';
+  for (var ri=0;ri<S.rewards.length;ri++){
+    var rw = S.rewards[ri];
+    h += '<div class="switch"><span class="sw-t">' + rw.icon + ' ' + esc(rw.title) + '（' + (rw.multi ? (rw.perStep + '★起') : (rw.cost + '★')) + '）</span>';
+    h +=   '<span class="toggle' + (rw.on !== false ? ' on' : '') + '" onclick="toggleReward(\'' + rw.key + '\', this)"></span></div>';
+  }
+  h +=   '<div class="btn-row" style="margin-top:10px"><button class="btn sm mint" onclick="newRewardSheet()">➕ 上架新奖励</button></div>';
+  h += '</div>';
+
+  // ------ 多设备同步 ------
+  h += '<div class="sec"><h2>☁️ 多设备同步</h2><div class="line"></div></div>';
+  h += '<div class="card">';
+  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">在每台手机/平板（包括球球用的那台）填上同样的仓库和令牌，数据就会自动互通：一台点亮星星，其他设备马上都能看见。GitHub 免费、不产生任何费用；令牌只保存在本机，不会写进网页。</div>';
+  h +=   '<div class="field"><label>仓库账号（owner）</label><input id="syOwner" value="' + esc(SYNC.owner) + '" placeholder="例如 qiuqiu202004"></div>';
+  h +=   '<div class="field"><label>仓库名（repo）</label><input id="syRepo" value="' + esc(SYNC.repo) + '" placeholder="例如 qiuqiu"></div>';
+  h +=   '<div class="field"><label>访问令牌（token，只存本机）</label><input id="syToken" value="' + esc(SYNC.token) + '" placeholder="粘贴 GitHub 令牌"></div>';
+  h +=   '<div id="syncStatus" style="font-size:12.5px;font-weight:800;color:#8f5fd6;background:#f7f2ff;border-radius:14px;padding:10px 12px;margin-bottom:12px;line-height:1.5">' + esc(syncState.msg || (syncReady() ? '已配置，等待同步' : '未开启同步，数据只在本机')) + '</div>';
+  h +=   '<div class="btn-row">';
+  h +=     '<button class="btn sm mint" onclick="saveSyncConfig()">保存并同步</button>';
+  h +=     '<button class="btn sm sky" onclick="pullManual()">从云端拉取</button>';
+  h +=     '<button class="btn sm purple" onclick="cloudPush()">立即上传</button>';
+  h +=     '<button class="btn sm ghost" onclick="clearSyncConfig()">关闭同步</button>';
+  h +=   '</div>';
+  h +=   '<div style="font-size:11.5px;color:var(--ink2);font-weight:700;line-height:1.75;margin-top:10px">获取令牌：GitHub 网页 → 右上角头像 → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token → 只勾选本仓库，权限里把 Contents 设为 Read and write → 生成后复制，粘贴到上面即可。</div>';
   h += '</div>';
 
   // ------ 数据备份 ------
   h += '<div class="sec"><h2>💾 数据备份</h2><div class="line"></div></div>';
   h += '<div class="card">';
-  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:12px">数据保存在这台设备上。换设备或清理浏览器前，先导出备份；在新设备用「导入」恢复。</div>';
+  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:12px">没开云同步时，数据只保存在这台设备上。换设备或清理浏览器前，先导出备份；在新设备用「导入」恢复。</div>';
   h +=   '<div class="btn-row">';
   h +=     '<button class="btn sm sky" onclick="exportData()">📤 导出备份</button>';
   h +=     '<button class="btn sm purple" onclick="importData()">📥 导入备份</button>';
@@ -1214,15 +1290,13 @@ function setMomDate(d){ momDate = d; sfx('tap'); renderMom(); }
 function momToggle(tk){ toggleTask(momDate, tk); renderAll(); }
 function momAllDone(){
   var log = {};
-  var keys = Object.keys(TASKS);
-  for (var i=0;i<keys.length;i++){ if (S.settings.taskOn[keys[i]] !== false) log[keys[i]] = true; }
+  for (var i=0;i<S.tasks.length;i++){ if (S.settings.taskOn[S.tasks[i].key] !== false) log[S.tasks[i].key] = true; }
   S.logs[momDate] = log; save(); renderAll(); sfx('star');
   toast(fmtCN(momDate) + ' 全部标记完成');
 }
 function momClear(){ S.logs[momDate] = {}; save(); renderAll(); toast('已清空 ' + fmtCN(momDate)); }
 function momLight(key, btn){
-  var cat = null;
-  for (var i=0;i<CATS.length;i++){ if (CATS[i].key === key) cat = CATS[i]; }
+  var cat = catByKey(key);
   if (cat) lightStar(cat, btn);
 }
 function momWisdom(type, btn){
@@ -1274,8 +1348,8 @@ function showReport(){
   for (var r=0;r<S.redemptions.length;r++){ if (S.redemptions[r].status==='done' && todayStr(new Date(S.redemptions[r].ts)) >= ws) used += S.redemptions[r].cost; }
 
   var rows = '';
-  for (var c=0;c<CATS.length;c++){
-    var cat = CATS[c], cnt = 0;
+  for (var c=0;c<S.cats.length;c++){
+    var cat = S.cats[c], cnt = 0;
     for (var d=0;d<7;d++){ if (dayDone(days[d], cat)) cnt++; }
     var st = streakOf(cat);
     rows += '<div class="gem"><div class="gi" style="background:' + cat.bg + '">' + cat.icon + '</div>' +
@@ -1354,6 +1428,273 @@ function resetAll(){
 function doReset(){
   S = defaultState(); save(); closeSheet(); renderAll(); toast('已恢复初始状态');
 }
+
+/* =========================================================
+   妈妈控制台 · 任务 / 达标规则 / 奖励 管理
+   ========================================================= */
+function setCatNeed(key, val){
+  var cat = catByKey(key); if (!cat) return;
+  var n = parseInt(val, 10);
+  if (!(n > 0)){ toast('请输入大于 0 的天数'); renderMom(); return; }
+  cat.need = n; save(); renderAll(); toast(cat.name + '：连续 ' + n + ' 天换 1 颗星');
+}
+function delCat(key){
+  var cat = catByKey(key); if (!cat) return;
+  openSheet(
+    '<h3>删除「' + esc(cat.name) + '」？</h3>' +
+    '<div class="sd">删除后这张任务卡不再出现，<br>已经点亮的星星记录会保留。</div>' +
+    '<div class="btn-row" style="justify-content:center"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn pink" onclick="doDelCat(\'' + key + '\')">确认删除</button></div>'
+  );
+}
+function doDelCat(key){
+  S.cats = S.cats.filter(function(c){ return c.key !== key; });
+  save(); closeSheet(); renderAll(); toast('已删除任务卡');
+}
+function newTaskSheet(){
+  if (!S.cats.length){ toast('请先在「达标规则」里新建一张任务卡'); return; }
+  var opts = '';
+  for (var i=0;i<S.cats.length;i++){ opts += '<option value="' + S.cats[i].key + '">' + esc(S.cats[i].name) + '</option>'; }
+  openSheet(
+    '<h3>➕ 添加任务</h3>' +
+    '<div class="sd">新增一个每天打卡的小项目，加入某张任务卡</div>' +
+    '<div class="field"><label>任务名称</label><input id="ntName" placeholder="例如：游泳 200 米"></div>' +
+    '<div class="field"><label>图标（一个表情）</label><input id="ntIcon" value="🎯" maxlength="4"></div>' +
+    '<div class="field"><label>加入哪张任务卡</label><select id="ntCat">' + opts + '</select></div>' +
+    '<div class="btn-row" style="justify-content:center"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn mint" onclick="saveNewTask()">保存</button></div>'
+  );
+}
+function saveNewTask(){
+  var name = ($('#ntName').value || '').trim();
+  var icon = ($('#ntIcon').value || '🎯').trim() || '🎯';
+  if (!name){ toast('请输入任务名称'); return; }
+  var key = 't_' + uid();
+  S.tasks.push({ key:key, icon:icon, name:name });
+  S.settings.taskOn[key] = true;
+  var cat = catByKey($('#ntCat').value);
+  if (cat){ cat.taskKeys = cat.taskKeys || []; if (cat.taskKeys.indexOf(key) < 0) cat.taskKeys.push(key); }
+  save(); closeSheet(); renderAll(); sfx('star'); toast('已添加任务：' + name);
+}
+function newCatSheet(){
+  var cbs = '';
+  for (var i=0;i<S.tasks.length;i++){
+    cbs += '<label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:800;margin:4px 12px 4px 0"><input type="checkbox" class="ncTask" value="' + S.tasks[i].key + '"> ' + S.tasks[i].icon + ' ' + esc(S.tasks[i].name) + '</label>';
+  }
+  openSheet(
+    '<h3>➕ 新建任务卡</h3>' +
+    '<div class="sd">相当于在「今日任务」里增加一张新卡片</div>' +
+    '<div class="field"><label>卡片名称</label><input id="ncName" placeholder="例如：钢琴练习星"></div>' +
+    '<div class="field"><label>图标</label><input id="ncIcon" value="⭐" maxlength="4"></div>' +
+    '<div class="field"><label>连续达标天数（几天换 1 颗星）</label><input id="ncNeed" type="number" min="1" value="5"></div>' +
+    '<div class="field"><label>判定方式</label><select id="ncMode"><option value="all">下面选的都要完成</option><option value="any">任选其一完成就算</option></select></div>' +
+    '<div class="field"><label>包含哪些打卡项</label><div>' + (cbs || '<span style="font-size:13px;color:var(--ink2)">还没有打卡项，请先点「添加任务」</span>') + '</div></div>' +
+    '<div class="btn-row" style="justify-content:center"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn mint" onclick="saveNewCat()">保存</button></div>'
+  );
+}
+function saveNewCat(){
+  var name = ($('#ncName').value || '').trim();
+  var icon = ($('#ncIcon').value || '⭐').trim() || '⭐';
+  var need = Math.max(1, parseInt($('#ncNeed').value, 10) || 5);
+  var mode = $('#ncMode').value;
+  var els = document.querySelectorAll('.ncTask'), picks = [];
+  for (var i=0;i<els.length;i++){ if (els[i].checked) picks.push(els[i].value); }
+  if (!name){ toast('请输入卡片名称'); return; }
+  if (!picks.length){ toast('请至少选择一个打卡项'); return; }
+  var pal = [ ['#5ec8ff','#e6f6ff'], ['#ffb14d','#fff5e3'], ['#7ee0b0','#e8fff5'], ['#b98cff','#f3ecff'], ['#ff9ec4','#fff0f6'] ];
+  var c = pal[S.cats.length % pal.length];
+  S.cats.push({ key:'c_' + uid(), name:name, icon:icon, color:c[0], bg:c[1], need:need, mode:mode, taskKeys:picks });
+  save(); closeSheet(); renderAll(); sfx('star'); toast('已新建任务卡：' + name);
+}
+function toggleReward(key, el){
+  var r = rewardByKey(key); if (!r) return;
+  r.on = !(r.on !== false);
+  save(); sfx('tick'); renderAll(); toast(r.on ? ('已上架：' + r.title) : ('已下架：' + r.title));
+}
+function newRewardSheet(){
+  openSheet(
+    '<h3>➕ 上架新奖励</h3>' +
+    '<div class="sd">加一个可以用星星兑换的新奖励</div>' +
+    '<div class="field"><label>奖励名称</label><input id="nrTitle" placeholder="例如：去公园玩 1 次"></div>' +
+    '<div class="field"><label>图标</label><input id="nrIcon" value="🎁" maxlength="4"></div>' +
+    '<div class="field"><label>需要多少颗星</label><input id="nrCost" type="number" min="1" value="3"></div>' +
+    '<div class="field"><label>说明（可留空）</label><input id="nrTip" placeholder="例如：周末挑个好天气"></div>' +
+    '<div class="btn-row" style="justify-content:center"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn mint" onclick="saveNewReward()">保存</button></div>'
+  );
+}
+function saveNewReward(){
+  var title = ($('#nrTitle').value || '').trim();
+  var icon = ($('#nrIcon').value || '🎁').trim() || '🎁';
+  var cost = Math.max(1, parseInt($('#nrCost').value, 10) || 3);
+  var tip = ($('#nrTip').value || '').trim() || ('花 ' + cost + ' 颗星星');
+  if (!title){ toast('请输入奖励名称'); return; }
+  var pal = [ ['#ff9ec4','#fff0f6'], ['#5ec8ff','#e6f6ff'], ['#7ee0b0','#e8fff5'], ['#b98cff','#f3ecff'], ['#ffb14d','#fff5e3'] ];
+  var c = pal[S.rewards.length % pal.length];
+  S.rewards.push({ key:'r_' + uid(), icon:icon, title:title, multi:false, cost:cost, color:c[0], bg:c[1], tip:tip, on:true });
+  save(); closeSheet(); renderAll(); sfx('star'); toast('已上架奖励：' + title);
+}
+
+/* =========================================================
+   云同步（GitHub Contents API）—— 让多台设备共用同一份数据
+   数据存进你自己的 GitHub 仓库；令牌只保存在本机浏览器
+   ========================================================= */
+var SYNC_KEY = 'qq_treasure_sync_v1';
+var SYNC = (function(){
+  var d = { owner:'qiuqiu202004', repo:'qiuqiu', branch:'main', path:'data.json', token:'', sha:null, lastTs:0 };
+  try {
+    var raw = localStorage.getItem(SYNC_KEY);
+    if (raw){ var o = JSON.parse(raw); for (var k in o){ if (o.hasOwnProperty(k)) d[k] = o[k]; } }
+  } catch(e){}
+  return d;
+})();
+function saveSync(){ try { localStorage.setItem(SYNC_KEY, JSON.stringify(SYNC)); } catch(e){} }
+function syncReady(){ return !!(SYNC.owner && SYNC.repo && SYNC.token); }
+function syncApiUrl(){ return 'https://api.github.com/repos/' + SYNC.owner + '/' + SYNC.repo + '/contents/' + encodeURIComponent(SYNC.path); }
+function ghHeaders(){ return { 'Authorization':'Bearer ' + SYNC.token, 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' }; }
+function b64e(s){ return btoa(unescape(encodeURIComponent(s))); }
+function b64d(s){ return decodeURIComponent(escape(atob(String(s).replace(/\s/g,'')))); }
+
+var syncState = { msg:'', busy:false };
+var suppressPush = false, pushTimer = null;
+
+function setSyncMsg(m){
+  syncState.msg = m;
+  var el = document.getElementById('syncStatus');
+  if (el) el.textContent = m;
+}
+
+function cloudPush(isRetry){
+  if (!syncReady() || syncState.busy) return;
+  syncState.busy = true;
+  setSyncMsg('正在同步…');
+  // 老版本数据可能没有 updatedAt，第一次上传时补一个，作为"谁更新"的判断依据
+  if (!S.updatedAt){ S.updatedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+  var payload = { message:'球球宝藏库 同步 ' + new Date().toLocaleString('zh-CN'), content: b64e(JSON.stringify(S)), branch: SYNC.branch || 'main' };
+  if (SYNC.sha) payload.sha = SYNC.sha;
+  fetch(syncApiUrl(), { method:'PUT', headers: ghHeaders(), body: JSON.stringify(payload), cache:'no-store' })
+    .then(function(r){
+      if (r.status === 409 || r.status === 422){ return { conflict:true }; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(j){
+      syncState.busy = false;
+      if (j && j.conflict){
+        if (isRetry){ setSyncMsg('云端有更新，稍后会自动再试'); return; }
+        resolveSyncConflict(); return;
+      }
+      if (j && j.content && j.content.sha){ SYNC.sha = j.content.sha; SYNC.lastTs = Date.now(); saveSync(); }
+      setSyncMsg('已同步 ' + fmtCN(todayStr()) + ' ' + new Date().toTimeString().slice(0,5));
+    })
+    .catch(function(e){
+      syncState.busy = false;
+      setSyncMsg('同步失败：' + (e.message || '网络问题') + '（数据已存本机，联网后会自动补传）');
+    });
+}
+
+function cloudPull(cb){
+  if (!syncReady()){ if (cb) cb(null, '未配置'); return; }
+  fetch(syncApiUrl() + '?ref=' + encodeURIComponent(SYNC.branch || 'main') + '&t=' + Date.now(), { headers: ghHeaders(), cache:'no-store' })
+    .then(function(r){
+      if (r.status === 404){ SYNC.sha = null; saveSync(); return null; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(j){
+      if (!j){ if (cb) cb(null); return; }
+      SYNC.sha = j.sha; saveSync();
+      var obj = null;
+      try { obj = JSON.parse(b64d(j.content || '')); } catch(e){ obj = null; }
+      if (cb) cb(obj);
+    })
+    .catch(function(e){ if (cb) cb(null, e.message || String(e)); });
+}
+
+function applyRemote(obj, msg, silent){
+  if (!obj) return;
+  suppressPush = true;
+  S = mergeDeep(defaultState(), obj);
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){}
+  suppressPush = false;
+  renderAll();
+  setSyncMsg(msg);
+  if (!silent) toast(msg);
+}
+
+function resolveSyncConflict(){
+  cloudPull(function(remote, err){
+    if (err){ setSyncMsg('同步失败：' + err); return; }
+    if (!remote){ cloudPush(true); return; }
+    if ((remote.updatedAt || 0) > (S.updatedAt || 0)) applyRemote(remote, '云端数据更新，已用云端版本更新本机');
+    else cloudPush(true);
+  });
+}
+
+function schedulePush(){
+  if (suppressPush || !syncReady()) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(function(){ cloudPush(false); }, 1500);
+}
+
+function refreshFromCloud(){
+  if (!syncReady() || syncState.busy) return;
+  var ae = document.activeElement;
+  if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;   // 正在输入时不打断
+  cloudPull(function(remote, err){
+    if (err || !remote) return;
+    if ((remote.updatedAt || 0) > (S.updatedAt || 0)) applyRemote(remote, '已载入云端最新数据', true);
+  });
+}
+
+// 是否已经有真实记录（用来避免"云端空数据"把本机记录覆盖掉）
+function hasRecords(o){
+  if (!o) return false;
+  return !!((o.stars && o.stars.length) || (o.logs && Object.keys(o.logs).length) || (o.redemptions && o.redemptions.length));
+}
+
+function bootSync(){
+  if (!syncReady()) return;
+  setSyncMsg('正在连接云端…');
+  cloudPull(function(remote, err){
+    if (err){ setSyncMsg('连接云端失败：' + err); return; }
+    if (!remote){ cloudPush(false); return; }
+    var rNewer = (remote.updatedAt || 0) > (S.updatedAt || 0);
+    var lNewer = (S.updatedAt || 0) > (remote.updatedAt || 0);
+    if (rNewer && !hasRecords(remote) && hasRecords(S)){ cloudPush(false); return; }  // 保护本机记录
+    if (rNewer) applyRemote(remote, '已从云端载入最新数据');
+    else if (lNewer) cloudPush(false);
+    else setSyncMsg('云端与本机已一致');
+  });
+}
+
+function saveSyncConfig(){
+  SYNC.owner = ($('#syOwner').value || '').trim();
+  SYNC.repo = ($('#syRepo').value || '').trim();
+  SYNC.token = ($('#syToken').value || '').trim();
+  SYNC.sha = null;
+  saveSync();
+  if (!syncReady()){ toast('请把仓库账号、仓库名、令牌都填上'); return; }
+  toast('已保存，正在同步…');
+  bootSync();
+}
+function clearSyncConfig(){
+  SYNC.token = ''; SYNC.sha = null; saveSync();
+  syncState.msg = '已关闭同步（本机数据保留）';
+  renderMom(); toast('已关闭云同步');
+}
+function pullManual(){
+  if (!syncReady()){ toast('请先填写仓库和令牌'); return; }
+  setSyncMsg('正在拉取…');
+  cloudPull(function(remote, err){
+    if (err){ setSyncMsg('拉取失败：' + err); return; }
+    if (!remote){ setSyncMsg('云端还没有数据，正在上传本机…'); cloudPush(false); return; }
+    if ((remote.updatedAt || 0) >= (S.updatedAt || 0)){
+      if (!hasRecords(remote) && hasRecords(S)){ setSyncMsg('云端为空，正在上传本机…'); cloudPush(false); return; }
+      applyRemote(remote, '已用云端数据更新本机');
+    } else { setSyncMsg('本机数据更新，正在上传…'); cloudPush(false); }
+  });
+}
+
+window.addEventListener('focus', refreshFromCloud);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) refreshFromCloud(); });
 
 /* =========================================================
    妈妈模式解锁
@@ -1444,10 +1785,10 @@ $('#pinModal').addEventListener('click', function(e){
 
 /* ---------- 首次使用引导 ---------- */
 (function boot(){
-  // 昵称/头像初始化提示
   renderAll();
   if (!localStorage.getItem(KEY)){
-    save();
+    // 首次打开：先落一份初始数据，但不改 updatedAt（这样云端已有数据时能正确覆盖本机）
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){}
     setTimeout(function(){
       openSheet(
         '<h3>🎉 欢迎来到球球宝藏库</h3>' +
@@ -1460,6 +1801,8 @@ $('#pinModal').addEventListener('click', function(e){
       );
     }, 500);
   }
+  // 已配置云同步的设备，启动时自动和云端对齐
+  bootSync();
 })();
 
 /* ---------- 离线缓存 ---------- */
