@@ -530,6 +530,22 @@ function mergeDeep(def, src){
   return out;
 }
 
+/* ---------- 云同步：打卡格的时间戳工具 ----------
+   旧的打卡格值是 true/false，新的值是 { on: true|false, ts: 时间戳 }。
+   带时间戳才能判断"多台设备对同一格改了谁更晚"，也才能把"取消打卡"同步出去。 */
+function valTs(v){
+  if (v === undefined || v === null || v === false) return 0;
+  if (v === true) return 1;
+  return (v && v.ts) || 1;
+}
+function logOn(log, k){
+  if (!log) return false;
+  var v = log[k];
+  if (v === undefined || v === null) return false;
+  if (v === true) return true;      // 兼容旧数据
+  return v.on !== false;
+}
+
 /* ---------- 数据 ---------- */
 function defaultState(){
   var tOn = {};
@@ -680,10 +696,10 @@ function dayDone(dateStr, cat){
   var active = keys.filter(function(t){ return S.settings.taskOn[t] !== false && taskByKey(t); });
   if (!active.length) return false;
   if (cat.mode === 'all') {
-    for (var i=0;i<active.length;i++){ if (!log[active[i]]) return false; }
+    for (var i=0;i<active.length;i++){ if (!logOn(log, active[i])) return false; }
     return true;
   }
-  for (var j=0;j<active.length;j++){ if (log[active[j]]) return true; }
+  for (var j=0;j<active.length;j++){ if (logOn(log, active[j])) return true; }
   return false;
 }
 
@@ -746,8 +762,8 @@ function addStar(o){
 /* ---------- 妈妈操作 ---------- */
 function toggleTask(dateStr, taskKey){
   var log = S.logs[dateStr] || {};
-  log[taskKey] = !log[taskKey];
-  if (!log[taskKey]) delete log[taskKey];
+  // 取消不删除、而是记一条"关闭"标记，这样"取消打卡"也能合并同步到其他设备
+  log[taskKey] = { on: !logOn(log, taskKey), ts: Date.now() };
   S.logs[dateStr] = log;
   save();
   sfx('tick');
@@ -1136,7 +1152,7 @@ function renderMom(){
 
   for (var k=0;k<S.tasks.length;k++){
     var tk = S.tasks[k].key;
-    var on = S.logs[momDate] && S.logs[momDate][tk];
+    var on = logOn(S.logs[momDate], tk);
     var enabled = S.settings.taskOn[tk] !== false;
     h += '<div class="chk' + (on ? ' on' : '') + '" style="' + (enabled ? '' : 'opacity:.45') + '" onclick="' + (enabled ? 'momToggle(\'' + tk + '\')' : '') + '">';
     h +=   '<span class="ci">' + S.tasks[k].icon + '</span>';
@@ -1257,14 +1273,14 @@ function renderMom(){
   // ------ 多设备同步 ------
   h += '<div class="sec"><h2>☁️ 多设备同步</h2><div class="line"></div></div>';
   h += '<div class="card">';
-  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">在每台手机/平板（包括球球用的那台）填上同样的仓库和令牌，数据就会自动互通：一台点亮星星，其他设备马上都能看见。GitHub 免费、不产生任何费用；令牌只保存在本机，不会写进网页。</div>';
+  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">在每台手机/平板（包括球球用的那台）填上同样的仓库和令牌，数据就自动互通：任何一台的打卡、点亮、兑换都会自动上传，其他设备会自动拉取——<b>一律以云端数据为准</b>；多台设备同时打卡也不会互相覆盖，凑在一起就是完整记录。GitHub 免费、不产生任何费用；令牌只保存在本机，不会写进网页。</div>';
   h +=   '<div class="field"><label>仓库账号（owner）</label><input id="syOwner" value="' + esc(SYNC.owner) + '" placeholder="例如 qiuqiu202004"></div>';
   h +=   '<div class="field"><label>仓库名（repo）</label><input id="syRepo" value="' + esc(SYNC.repo) + '" placeholder="例如 qiuqiu"></div>';
   h +=   '<div class="field"><label>访问令牌（token，只存本机）</label><input id="syToken" value="' + esc(SYNC.token) + '" placeholder="粘贴 GitHub 令牌"></div>';
   h +=   '<div id="syncStatus" style="font-size:12.5px;font-weight:800;color:#8f5fd6;background:#f7f2ff;border-radius:14px;padding:10px 12px;margin-bottom:12px;line-height:1.5">' + esc(syncState.msg || (syncReady() ? '已配置，等待同步' : '未开启同步，数据只在本机')) + '</div>';
   h +=   '<div class="btn-row">';
   h +=     '<button class="btn sm mint" onclick="saveSyncConfig()">保存并同步</button>';
-  h +=     '<button class="btn sm sky" onclick="pullManual()">从云端拉取</button>';
+  h +=     '<button class="btn sm sky" onclick="pullManual()">以云端为准</button>';
   h +=     '<button class="btn sm purple" onclick="cloudPush()">立即上传</button>';
   h +=     '<button class="btn sm ghost" onclick="clearSyncConfig()">关闭同步</button>';
   h +=   '</div>';
@@ -1289,12 +1305,18 @@ function renderMom(){
 function setMomDate(d){ momDate = d; sfx('tap'); renderMom(); }
 function momToggle(tk){ toggleTask(momDate, tk); renderAll(); }
 function momAllDone(){
-  var log = {};
-  for (var i=0;i<S.tasks.length;i++){ if (S.settings.taskOn[S.tasks[i].key] !== false) log[S.tasks[i].key] = true; }
+  var log = S.logs[momDate] || {};
+  var ts = Date.now();
+  for (var i=0;i<S.tasks.length;i++){ if (S.settings.taskOn[S.tasks[i].key] !== false) log[S.tasks[i].key] = { on:true, ts:ts }; }
   S.logs[momDate] = log; save(); renderAll(); sfx('star');
   toast(fmtCN(momDate) + ' 全部标记完成');
 }
-function momClear(){ S.logs[momDate] = {}; save(); renderAll(); toast('已清空 ' + fmtCN(momDate)); }
+function momClear(){
+  var log = S.logs[momDate] || {};
+  var ts = Date.now();
+  for (var k in log){ if (log.hasOwnProperty(k)) log[k] = { on:false, ts:ts }; }   // 留标记，才能同步"清空"给其他设备
+  S.logs[momDate] = log; save(); renderAll(); toast('已清空 ' + fmtCN(momDate));
+}
 function momLight(key, btn){
   var cat = catByKey(key);
   if (cat) lightStar(cat, btn);
@@ -1538,7 +1560,7 @@ function saveNewReward(){
    ========================================================= */
 var SYNC_KEY = 'qq_treasure_sync_v1';
 var SYNC = (function(){
-  var d = { owner:'qiuqiu202004', repo:'qiuqiu', branch:'main', path:'data.json', token:'', sha:null, lastTs:0 };
+  var d = { owner:'qiuqiu202004', repo:'qiuqiu', branch:'main', path:'data.json', token:'', sha:null, lastTs:0, lastLocalTs:0, lastSyncTs:0 };
   try {
     var raw = localStorage.getItem(SYNC_KEY);
     if (raw){ var o = JSON.parse(raw); for (var k in o){ if (o.hasOwnProperty(k)) d[k] = o[k]; } }
@@ -1561,33 +1583,170 @@ function setSyncMsg(m){
   if (el) el.textContent = m;
 }
 
-function cloudPush(isRetry){
-  if (!syncReady() || syncState.busy) return;
-  syncState.busy = true;
-  setSyncMsg('正在同步…');
-  // 老版本数据可能没有 updatedAt，第一次上传时补一个，作为"谁更新"的判断依据
-  if (!S.updatedAt){ S.updatedAt = Date.now(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
-  var payload = { message:'球球宝藏库 同步 ' + new Date().toLocaleString('zh-CN'), content: b64e(JSON.stringify(S)), branch: SYNC.branch || 'main' };
+/* ---------- 合并规则：配置取"改得更晚"的一方，记录只增不丢 ---------- */
+function topTs(o){ return (o && o.updatedAt) || 0; }
+
+// 打卡记录：逐日期逐格合并，同一格取时间戳较新的一方（这样多台设备各自打卡都不会丢，"取消打卡"也能同步）
+function mergeLogs(a, b){
+  var out = {}, dates = {}, d, k;
+  a = a || {}; b = b || {};
+  for (d in a){ if (a.hasOwnProperty(d)) dates[d] = 1; }
+  for (d in b){ if (b.hasOwnProperty(d)) dates[d] = 1; }
+  for (d in dates){
+    var la = a[d] || {}, lb = b[d] || {}, day = {}, keys = {};
+    for (k in la){ if (la.hasOwnProperty(k)) keys[k] = 1; }
+    for (k in lb){ if (lb.hasOwnProperty(k)) keys[k] = 1; }
+    for (k in keys){
+      var va = la[k], vb = lb[k];
+      if (va === undefined) day[k] = vb;
+      else if (vb === undefined) day[k] = va;
+      else day[k] = (valTs(vb) >= valTs(va)) ? vb : va;
+    }
+    out[d] = day;
+  }
+  return out;
+}
+function mergeById(a, b){
+  var out = [], seen = {}, i, x, id;
+  a = a || []; b = b || [];
+  for (i=0;i<a.length;i++){ x = a[i]; id = x && x.id; if (id && seen[id]) continue; if (id) seen[id] = 1; out.push(x); }
+  for (i=0;i<b.length;i++){ x = b[i]; id = x && x.id; if (id && seen[id]) continue; if (id) seen[id] = 1; out.push(x); }
+  return out;
+}
+function mergeLitRuns(a, b){
+  var out = {}, keys = {}, k;
+  a = a || {}; b = b || {};
+  for (k in a){ if (a.hasOwnProperty(k)) keys[k] = 1; }
+  for (k in b){ if (b.hasOwnProperty(k)) keys[k] = 1; }
+  for (k in keys){
+    var arr = [], seen = {}, i, it, sig, la = a[k] || [], lb = b[k] || [];
+    for (i=0;i<la.length;i++){ it = la[i]; sig = it.runStart + '|' + it.len; if (seen[sig]) continue; seen[sig] = 1; arr.push(it); }
+    for (i=0;i<lb.length;i++){ it = lb[i]; sig = it.runStart + '|' + it.len; if (seen[sig]) continue; seen[sig] = 1; arr.push(it); }
+    out[k] = arr;
+  }
+  return out;
+}
+function redeemRank(s){ return s === 'done' ? 2 : (s === 'rejected' ? 1 : 0); }
+function mergeRedemptions(a, b){
+  var map = {}, order = [], out = [], i, r, id;
+  a = a || []; b = b || [];
+  for (i=0;i<a.length;i++){ r = a[i]; id = r && r.id; if (!id) continue; map[id] = r; order.push(id); }
+  for (i=0;i<b.length;i++){
+    r = b[i]; id = r && r.id; if (!id) continue;
+    if (!map[id]){ map[id] = r; order.push(id); }
+    else if (redeemRank(r.status) >= redeemRank(map[id].status)) map[id] = r;
+  }
+  for (i=0;i<order.length;i++) out.push(map[order[i]]);
+  return out;
+}
+function mergeReports(a, b, mainRep){
+  var out = {}, k;
+  a = a || {}; b = b || {};
+  for (k in a){ if (a.hasOwnProperty(k)) out[k] = a[k]; }
+  for (k in b){ if (b.hasOwnProperty(k)) out[k] = b[k]; }
+  if (mainRep){ for (k in mainRep){ if (mainRep.hasOwnProperty(k)) out[k] = mainRep[k]; } }
+  return out;
+}
+
+// 云端(base) + 本机(local) → 一份：本机没有新改动时完全以云端为准；记录（打卡/星星/点亮/兑换）只增不丢
+function autoMerge(base, local){
+  if (!base) return JSON.parse(JSON.stringify(local));
+  if (!local) return base;
+  var main = (topTs(local) >= topTs(base)) ? local : base;   // 配置类字段取改动更新的那台
+  var out = JSON.parse(JSON.stringify(main));
+  out.updatedAt = Math.max(topTs(base), topTs(local));
+  out.logs = mergeLogs(base.logs, local.logs);
+  out.stars = mergeById(base.stars, local.stars);
+  out.litRuns = mergeLitRuns(base.litRuns, local.litRuns);
+  out.redemptions = mergeRedemptions(base.redemptions, local.redemptions);
+  out.reports = mergeReports(base.reports, local.reports, main.reports);
+  out.praise = main.praise || 0;
+  return out;
+}
+
+function stateSig(o){
+  if (!o) return '';
+  var c = JSON.parse(JSON.stringify(o));
+  delete c.updatedAt;
+  return JSON.stringify(c);
+}
+function markSynced(ts){
+  SYNC.lastLocalTs = ts || (S.updatedAt || 0);
+  SYNC.lastSyncTs = Date.now();
+  saveSync();
+}
+
+var syncBusy = false, syncPending = false, pollTimer = null;
+
+// 写回云端；若云端被其他设备改过（sha 冲突），先重新拉取合并再写一次
+function cloudPut(obj, cb, isRetry){
+  var payload = { message:'球球宝藏库 同步 ' + new Date().toLocaleString('zh-CN'), content: b64e(JSON.stringify(obj)), branch: SYNC.branch || 'main' };
   if (SYNC.sha) payload.sha = SYNC.sha;
   fetch(syncApiUrl(), { method:'PUT', headers: ghHeaders(), body: JSON.stringify(payload), cache:'no-store' })
     .then(function(r){
-      if (r.status === 409 || r.status === 422){ return { conflict:true }; }
+      if (r.status === 409 || r.status === 422) return { conflict: !!isRetry, retry: !isRetry };
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     })
     .then(function(j){
-      syncState.busy = false;
-      if (j && j.conflict){
-        if (isRetry){ setSyncMsg('云端有更新，稍后会自动再试'); return; }
-        resolveSyncConflict(); return;
+      if (j && j.retry){
+        SYNC.sha = null; saveSync();
+        cloudPull(function(latest){ cloudPut(latest ? autoMerge(latest, obj) : obj, cb, true); });
+        return;
       }
-      if (j && j.content && j.content.sha){ SYNC.sha = j.content.sha; SYNC.lastTs = Date.now(); saveSync(); }
-      setSyncMsg('已同步 ' + fmtCN(todayStr()) + ' ' + new Date().toTimeString().slice(0,5));
+      if (j && j.conflict){ cb(false, '云端有其他设备的更新，稍后自动重试'); return; }
+      if (j && j.content && j.content.sha){ SYNC.sha = j.content.sha; saveSync(); }
+      cb(true);
     })
-    .catch(function(e){
-      syncState.busy = false;
-      setSyncMsg('同步失败：' + (e.message || '网络问题') + '（数据已存本机，联网后会自动补传）');
-    });
+    .catch(function(e){ cb(false, e.message || '网络问题'); });
+}
+
+/* 一次完整同步：拉云端 → 与本机合并 → 本机有改动就写回云端 → 本机应用合并结果。
+   结果：所有设备最终看到同一份数据（云端为准），且各设备的打卡都不会被覆盖丢失。 */
+function syncOnce(reason, cb, forcePush){
+  if (!syncReady()){ if (cb) cb('未配置'); return; }
+  if (syncBusy){ syncPending = true; return; }
+  syncBusy = true; syncState.busy = true;
+  setSyncMsg('正在和云端同步…');
+  var localDirty = !!forcePush || (S.updatedAt || 0) > (SYNC.lastLocalTs || 0);
+  cloudPull(function(remote, err){
+    if (err){
+      syncBusy = false; syncState.busy = false;
+      setSyncMsg('同步失败：' + err + '（已存本机，联网后会自动补传）');
+      return syncDone(cb);
+    }
+    var merged = remote ? autoMerge(remote, S) : JSON.parse(JSON.stringify(S));
+    if (!remote || localDirty){
+      cloudPut(merged, function(ok, e){
+        if (ok){
+          // 上传返回期间本机可能又有新操作，这里再合并一次，避免被旧数据盖掉
+          applyRemote(autoMerge(merged, S), null, true);
+          markSynced(merged.updatedAt);
+          setSyncMsg('已同步 ' + fmtCN(todayStr()) + ' ' + new Date().toTimeString().slice(0,5));
+        } else {
+          setSyncMsg('同步失败：' + e + '（已存本机，联网后会自动补传）');
+        }
+        syncBusy = false; syncState.busy = false;
+        syncDone(cb);
+      });
+    } else {
+      if (stateSig(merged) !== stateSig(S)) applyRemote(autoMerge(merged, S), '已载入云端最新数据', true);
+      markSynced(merged.updatedAt);
+      syncBusy = false; syncState.busy = false;
+      setSyncMsg('已和云端一致 ' + new Date().toTimeString().slice(0,5));
+      syncDone(cb);
+    }
+  });
+}
+function syncDone(cb){
+  if (syncPending){ syncPending = false; setTimeout(function(){ syncOnce('queued'); }, 400); }
+  if (cb) cb();
+}
+
+// 「立即上传」按钮：以本机为准，合并后写回云端
+function cloudPush(){
+  if (!syncReady()){ toast('请先填写仓库和令牌'); return; }
+  syncOnce('manual', null, true);
 }
 
 function cloudPull(cb){
@@ -1615,54 +1774,35 @@ function applyRemote(obj, msg, silent){
   try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){}
   suppressPush = false;
   renderAll();
-  setSyncMsg(msg);
-  if (!silent) toast(msg);
-}
-
-function resolveSyncConflict(){
-  cloudPull(function(remote, err){
-    if (err){ setSyncMsg('同步失败：' + err); return; }
-    if (!remote){ cloudPush(true); return; }
-    if ((remote.updatedAt || 0) > (S.updatedAt || 0)) applyRemote(remote, '云端数据更新，已用云端版本更新本机');
-    else cloudPush(true);
-  });
+  if (msg){ setSyncMsg(msg); if (!silent) toast(msg); }
 }
 
 function schedulePush(){
   if (suppressPush || !syncReady()) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(function(){ cloudPush(false); }, 1500);
+  pushTimer = setTimeout(function(){ syncOnce('local'); }, 800);
 }
 
 function refreshFromCloud(){
-  if (!syncReady() || syncState.busy) return;
+  if (!syncReady()) return;
   var ae = document.activeElement;
   if (ae && /^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName)) return;   // 正在输入时不打断
-  cloudPull(function(remote, err){
-    if (err || !remote) return;
-    if ((remote.updatedAt || 0) > (S.updatedAt || 0)) applyRemote(remote, '已载入云端最新数据', true);
-  });
+  syncOnce('focus');
 }
 
-// 是否已经有真实记录（用来避免"云端空数据"把本机记录覆盖掉）
-function hasRecords(o){
-  if (!o) return false;
-  return !!((o.stars && o.stars.length) || (o.logs && Object.keys(o.logs).length) || (o.redemptions && o.redemptions.length));
+// 每 60 秒自动和云端对一次（页面在前台时），保证随时看到其他设备的最新数据
+function startPolling(){
+  if (pollTimer) return;
+  pollTimer = setInterval(function(){
+    if (document.hidden || !syncReady()) return;
+    syncOnce('poll');
+  }, 60000);
 }
 
 function bootSync(){
   if (!syncReady()) return;
-  setSyncMsg('正在连接云端…');
-  cloudPull(function(remote, err){
-    if (err){ setSyncMsg('连接云端失败：' + err); return; }
-    if (!remote){ cloudPush(false); return; }
-    var rNewer = (remote.updatedAt || 0) > (S.updatedAt || 0);
-    var lNewer = (S.updatedAt || 0) > (remote.updatedAt || 0);
-    if (rNewer && !hasRecords(remote) && hasRecords(S)){ cloudPush(false); return; }  // 保护本机记录
-    if (rNewer) applyRemote(remote, '已从云端载入最新数据');
-    else if (lNewer) cloudPush(false);
-    else setSyncMsg('云端与本机已一致');
-  });
+  syncOnce('boot');
+  startPolling();
 }
 
 function saveSyncConfig(){
@@ -1673,23 +1813,23 @@ function saveSyncConfig(){
   saveSync();
   if (!syncReady()){ toast('请把仓库账号、仓库名、令牌都填上'); return; }
   toast('已保存，正在同步…');
-  bootSync();
+  syncOnce('config');
+  startPolling();
 }
 function clearSyncConfig(){
-  SYNC.token = ''; SYNC.sha = null; saveSync();
+  SYNC.token = ''; SYNC.sha = null; SYNC.lastLocalTs = 0; saveSync();
   syncState.msg = '已关闭同步（本机数据保留）';
   renderMom(); toast('已关闭云同步');
 }
+// 「从云端拉取」：强制以云端为准，覆盖本机（本机没上传过的改动会被丢弃）
 function pullManual(){
   if (!syncReady()){ toast('请先填写仓库和令牌'); return; }
-  setSyncMsg('正在拉取…');
+  setSyncMsg('正在以云端为准拉取…');
   cloudPull(function(remote, err){
     if (err){ setSyncMsg('拉取失败：' + err); return; }
-    if (!remote){ setSyncMsg('云端还没有数据，正在上传本机…'); cloudPush(false); return; }
-    if ((remote.updatedAt || 0) >= (S.updatedAt || 0)){
-      if (!hasRecords(remote) && hasRecords(S)){ setSyncMsg('云端为空，正在上传本机…'); cloudPush(false); return; }
-      applyRemote(remote, '已用云端数据更新本机');
-    } else { setSyncMsg('本机数据更新，正在上传…'); cloudPush(false); }
+    if (!remote){ setSyncMsg('云端还没有数据，正在上传本机…'); syncOnce('push', null, true); return; }
+    applyRemote(remote, '已用云端数据覆盖本机', false);
+    markSynced();
   });
 }
 
