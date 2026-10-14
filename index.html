@@ -94,6 +94,10 @@ main{position:relative;z-index:1}
 .sec{display:flex;align-items:center;gap:8px;margin:20px 2px 10px}
 .sec h2{margin:0;font-size:18.5px;font-weight:900;letter-spacing:.5px}
 .sec .line{flex:1;height:3px;border-radius:3px;background:repeating-linear-gradient(90deg,#ffd9a0 0 8px,transparent 8px 16px)}
+#sc-mom .sec.foldable{cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+#sc-mom .sec .chev{flex:none;font-size:13px;color:#c9a86a;transition:transform .2s}
+#sc-mom .sec.closed .chev{transform:rotate(-90deg)}
+#sc-mom .secbody.collapsed{display:none}
 .card{
   background:var(--card);border-radius:24px;padding:16px;
   border:3px solid #fff;box-shadow:0 8px 0 rgba(150,120,80,.13),0 14px 26px rgba(120,110,90,.08);
@@ -872,7 +876,7 @@ function renderHome(){
   h += '<div class="topbar">';
   h +=   '<div class="kid"><div class="avatar" id="kidAvatar">' + esc(S.child.avatar) + '</div>';
   h +=     '<div><div class="hi">你好，<b>' + esc(S.child.name) + '</b>！</div>';
-  h +=     '<div class="sub">今天也要加油哦～ ' + esc(cheer) + '</div></div></div>';
+  h +=     '<div class="sub">' + fmtCN(today) + ' 周' + weekdayCN(today) + ' · 今天也要加油哦～</div></div></div>';
   h +=   '<div class="vault-chip" id="vaultChip"><span class="st">★</span><span class="num" id="vaultChipNum">' + v + '</span></div>';
   h += '</div>';
 
@@ -886,7 +890,11 @@ function renderHome(){
   h += '<div class="banner"><span class="em">🌈</span><span>' + esc(cheer) + '</span></div>';
 
   // 今日任务
-  h += '<div class="sec"><h2>🎯 今日任务</h2><div class="line"></div></div>';
+  var doneCnt = 0;
+  for (var dc=0; dc<S.cats.length; dc++){ if (dayDone(today, S.cats[dc])) doneCnt++; }
+  h += '<div class="sec"><h2>🎯 今日任务</h2><div class="line"></div>';
+  h +=   '<span class="chip' + (S.cats.length && doneCnt >= S.cats.length ? ' ok' : '') + '">' + doneCnt + '/' + S.cats.length + ' 项</span>';
+  h += '</div>';
   h += '<div class="task-grid">';
   for (var c=0;c<S.cats.length;c++){
     var cat = S.cats[c];
@@ -1120,6 +1128,53 @@ function doRedeem(key, cost, qty){
 /* ---------- 妈妈模式 ---------- */
 var momDate = todayStr();
 
+/* ---------- 妈妈控制台：模块折叠 ---------- */
+var MOM_SEC_KEYS = ['daily','light','wisdom','redeem','report','settings','rules','rewards','sync','backup'];
+var MOM_OPEN_DEFAULT = { daily:1, light:1, redeem:1 };   // 默认展开的模块，其余默认收起
+var FOLD_KEY = 'qq_treasure_fold_v1';
+var momFold = {};
+try { momFold = JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') || {}; } catch(e){ momFold = {}; }
+function foldSave(){ try { localStorage.setItem(FOLD_KEY, JSON.stringify(momFold)); } catch(e){} }
+function momSecOpen(k){
+  if (momFold[k] === undefined) return !!MOM_OPEN_DEFAULT[k];
+  return momFold[k] !== false;
+}
+function toggleMomSec(k){
+  momFold[k] = !momSecOpen(k);
+  foldSave();
+  var sec = document.querySelector('#sc-mom .sec[data-k="' + k + '"]');
+  if (sec){
+    sec.classList.toggle('closed', !momSecOpen(k));
+    var body = sec.nextElementSibling;
+    if (body && body.className.indexOf('secbody') === 0) body.classList.toggle('collapsed', !momSecOpen(k));
+  }
+  sfx('tap');
+}
+/* 把「标题 + 内容」包成一组，点击标题即可收起 / 展开 */
+function momFoldApply(){
+  var box = $('#sc-mom');
+  if (!box) return;
+  var secs = box.querySelectorAll('.sec');
+  for (var i=0;i<secs.length;i++){
+    var sec = secs[i], k = MOM_SEC_KEYS[i] || ('s' + i);
+    var open = momSecOpen(k);
+    sec.setAttribute('data-k', k);
+    sec.classList.add('foldable');
+    if (!open) sec.classList.add('closed');
+    if (!sec.querySelector('.chev')) sec.insertAdjacentHTML('beforeend', '<span class="chev">▾</span>');
+    sec.onclick = (function(kk){ return function(){ toggleMomSec(kk); }; })(k);
+    var body = document.createElement('div');
+    body.className = 'secbody' + (open ? '' : ' collapsed');
+    var n = sec.nextSibling;
+    while (n && !(n.nodeType === 1 && n.classList && n.classList.contains('sec'))){
+      var nx = n.nextSibling;
+      body.appendChild(n);
+      n = nx;
+    }
+    sec.parentNode.insertBefore(body, sec.nextSibling);
+  }
+}
+
 function renderMom(){
   if (!MOM_UNLOCKED){ $('#sc-mom').innerHTML = ''; return; }
 
@@ -1128,7 +1183,7 @@ function renderMom(){
 
   h += '<div class="momhead">';
   h +=   '<div class="mt">👩 妈妈控制台</div>';
-  h +=   '<div class="ms">这里只有妈妈能进。打卡、点亮星星、审核兑换、改设置都在这里。</div>';
+  h +=   '<div class="ms">这里只有妈妈能进。打卡、点亮星星、审核兑换、改设置都在这里。（点模块标题可收起 / 展开）</div>';
   h += '</div>';
 
   // ------ 每日打卡 ------
@@ -1168,7 +1223,7 @@ function renderMom(){
   h += '</div>';
 
   // ------ 点亮星星 ------
-  h += '<div class="sec"><h2>⭐ 点亮星星</h2><div class="line"></div></div>';
+  h += '<div class="sec"><h2>⭐ 点亮星星</h2><div class="line"></div>' + (avail.length ? '<span class="chip" style="color:#9a6a00;background:#fff3cf">' + avail.length + ' 项待点亮</span>' : '') + '</div>';
   h += '<div class="card">';
   if (!avail.length){
     h += '<div class="empty" style="padding:14px"><span class="em">🌟</span>暂时没有可点亮的星星<br>孩子连续达标后会自动出现在这里</div>';
@@ -1198,7 +1253,7 @@ function renderMom(){
 
   // ------ 兑换审核 ------
   var pend = pendingRedemptions();
-  h += '<div class="sec"><h2>🎁 兑换审核</h2><div class="line"></div></div>';
+  h += '<div class="sec"><h2>🎁 兑换审核</h2><div class="line"></div>' + (pend.length ? '<span class="chip" style="color:#1f8a52;background:#d9ffe9">' + pend.length + ' 条待审核</span>' : '') + '</div>';
   h += '<div class="card">';
   if (!pend.length){
     h += '<div class="empty" style="padding:14px"><span class="em">🎈</span>没有待确认的兑换申请</div>';
@@ -1230,8 +1285,8 @@ function renderMom(){
   }
   h +=   '</div></div>';
   h +=   '<div class="field"><label>妈妈密码（4~8 位数字）</label><input id="setPin" value="' + esc(S.settings.pin) + '" onchange="setPin(this.value)"></div>';
-  h +=   '<div class="field"><label>兑换比例：1 颗星 = 多少分钟电视</label><input id="setTv" value="' + S.settings.tvMinPerStar + '" onchange="setTv(this.value)"></div>';
-  h +=   '<div class="field"><label>兑换比例：1 颗星 = 多少钱</label><input id="setYuan" value="' + S.settings.yuanPerStar + '" onchange="setYuan(this.value)"></div>';
+  h +=   '<div class="field"><label>📺 看电视：1 颗星 = 多少分钟</label><input id="setTv" value="' + S.settings.tvMinPerStar + '" onchange="setTv(this.value)"></div>';
+  h +=   '<div class="field"><label>💰 零花钱：1 颗星 = 多少元</label><input id="setYuan" value="' + S.settings.yuanPerStar + '" onchange="setYuan(this.value)"></div>';
   h += '</div>';
 
   h += '<div class="card">';
@@ -1300,6 +1355,7 @@ function renderMom(){
   h += '</div>';
 
   $('#sc-mom').innerHTML = h;
+  momFoldApply();
 }
 
 function setMomDate(d){ momDate = d; sfx('tap'); renderMom(); }
