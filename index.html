@@ -437,13 +437,13 @@ var DEFAULT_TASKS = [
   { key:'choreBed',  icon:'🛏️', name:'被子自己叠' }
 ];
 
-/* 默认任务卡（星种规则）。need = 连续达标几天换 1 颗星；mode: all=全部完成 / any=任一完成 */
+/* 默认任务卡（星种规则）。need = 连续达标几天换 1 颗星；卡内任一打卡项完成，当天即算达标 */
 var DEFAULT_CATS = [
-  { key:'sport',     name:'运动小明星',         icon:'🏃', color:'#5ec8ff', bg:'#e6f6ff', need:5, mode:'all', taskKeys:['rope','run'] },
+  { key:'sport',     name:'运动小明星',         icon:'🏃', color:'#5ec8ff', bg:'#e6f6ff', need:5, mode:'any', taskKeys:['rope','run'] },
   { key:'read',      name:'阅读智慧星',         icon:'📖', color:'#ffb14d', bg:'#fff5e3', need:5, mode:'any', taskKeys:['read','note'] },
-  { key:'choreSelf', name:'家务星·自己事自己做', icon:'🧦', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', taskKeys:['choreSelf'] },
-  { key:'choreBag',  name:'家务星·书包自己收拾', icon:'🎒', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', taskKeys:['choreBag'] },
-  { key:'choreBed',  name:'家务星·被子自己叠',   icon:'🛏️', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'all', taskKeys:['choreBed'] }
+  { key:'choreSelf', name:'家务星·自己事自己做', icon:'🧦', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'any', taskKeys:['choreSelf'] },
+  { key:'choreBag',  name:'家务星·书包自己收拾', icon:'🎒', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'any', taskKeys:['choreBag'] },
+  { key:'choreBed',  name:'家务星·被子自己叠',   icon:'🛏️', color:'#7ee0b0', bg:'#e8fff5', need:7, mode:'any', taskKeys:['choreBed'] }
 ];
 
 /* 默认奖励（可在妈妈控制台上架/下架/新增） */
@@ -493,7 +493,7 @@ function taskByKey(key){
 function catDesc(cat){
   var names = [], ks = cat.taskKeys || [];
   for (var i=0;i<ks.length;i++){ var t = taskByKey(ks[i]); if (t) names.push(t.name); }
-  var head = names.join(cat.mode === 'any' ? ' 或 ' : ' + ');
+  var head = names.join(' 或 ');
   return head ? (head + '，连续 ' + cat.need + ' 天') : ('连续 ' + cat.need + ' 天');
 }
 
@@ -699,10 +699,7 @@ function dayDone(dateStr, cat){
   var keys = cat.taskKeys || [];
   var active = keys.filter(function(t){ return S.settings.taskOn[t] !== false && taskByKey(t); });
   if (!active.length) return false;
-  if (cat.mode === 'all') {
-    for (var i=0;i<active.length;i++){ if (!logOn(log, active[i])) return false; }
-    return true;
-  }
+  // 任一打卡项完成，即算这张任务卡当天达标（不需要全部完成）
   for (var j=0;j<active.length;j++){ if (logOn(log, active[j])) return true; }
   return false;
 }
@@ -1301,7 +1298,7 @@ function renderMom(){
   // ------ 达标规则 ------
   h += '<div class="sec"><h2>🎯 达标规则</h2><div class="line"></div></div>';
   h += '<div class="card">';
-  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">每张任务卡「连续达标几天 → 点亮 1 颗星」，都可以按球球的情况随时调整。</div>';
+  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">每张任务卡「连续达标几天 → 点亮 1 颗星」，都可以按球球的情况随时调整。<br>卡里只要完成<b>任意一个</b>打卡项，当天就算达标，不用全部做完。各张任务卡各自计算、互不影响。</div>';
   for (var ci=0;ci<S.cats.length;ci++){
     var ct = S.cats[ci];
     h += '<div class="field"><label>' + ct.icon + ' ' + esc(ct.name) + '　连续 <b>' + ct.need + '</b> 天换 1★</label>';
@@ -1559,11 +1556,10 @@ function newCatSheet(){
   }
   openSheet(
     '<h3>➕ 新建任务卡</h3>' +
-    '<div class="sd">相当于在「今日任务」里增加一张新卡片</div>' +
+    '<div class="sd">在「今日任务」里增加一张新卡片（卡内任一打卡项完成，当天就算达标）</div>' +
     '<div class="field"><label>卡片名称</label><input id="ncName" placeholder="例如：钢琴练习星"></div>' +
     '<div class="field"><label>图标</label><input id="ncIcon" value="⭐" maxlength="4"></div>' +
     '<div class="field"><label>连续达标天数（几天换 1 颗星）</label><input id="ncNeed" type="number" min="1" value="5"></div>' +
-    '<div class="field"><label>判定方式</label><select id="ncMode"><option value="all">下面选的都要完成</option><option value="any">任选其一完成就算</option></select></div>' +
     '<div class="field"><label>包含哪些打卡项</label><div>' + (cbs || '<span style="font-size:13px;color:var(--ink2)">还没有打卡项，请先点「添加任务」</span>') + '</div></div>' +
     '<div class="btn-row" style="justify-content:center"><button class="btn ghost" onclick="closeSheet()">取消</button><button class="btn mint" onclick="saveNewCat()">保存</button></div>'
   );
@@ -1572,14 +1568,13 @@ function saveNewCat(){
   var name = ($('#ncName').value || '').trim();
   var icon = ($('#ncIcon').value || '⭐').trim() || '⭐';
   var need = Math.max(1, parseInt($('#ncNeed').value, 10) || 5);
-  var mode = $('#ncMode').value;
   var els = document.querySelectorAll('.ncTask'), picks = [];
   for (var i=0;i<els.length;i++){ if (els[i].checked) picks.push(els[i].value); }
   if (!name){ toast('请输入卡片名称'); return; }
   if (!picks.length){ toast('请至少选择一个打卡项'); return; }
   var pal = [ ['#5ec8ff','#e6f6ff'], ['#ffb14d','#fff5e3'], ['#7ee0b0','#e8fff5'], ['#b98cff','#f3ecff'], ['#ff9ec4','#fff0f6'] ];
   var c = pal[S.cats.length % pal.length];
-  S.cats.push({ key:'c_' + uid(), name:name, icon:icon, color:c[0], bg:c[1], need:need, mode:mode, taskKeys:picks });
+  S.cats.push({ key:'c_' + uid(), name:name, icon:icon, color:c[0], bg:c[1], need:need, mode:'any', taskKeys:picks });
   save(); closeSheet(); renderAll(); sfx('star'); toast('已新建任务卡：' + name);
 }
 function toggleReward(key, el){
