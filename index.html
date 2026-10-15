@@ -1313,11 +1313,24 @@ function renderMom(){
   // ------ 奖励设置 ------
   h += '<div class="sec"><h2>🎁 奖励设置</h2><div class="line"></div></div>';
   h += '<div class="card">';
-  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">下架的奖励，球球的小店里就看不到了（已兑换的记录会保留）。</div>';
+  h +=   '<div style="font-size:12.5px;color:var(--ink2);font-weight:700;line-height:1.6;margin-bottom:10px">下架的奖励，球球的小店里就看不到了（已兑换的记录会保留）。<br>每个奖励需要几颗星，直接在输入框里改就行，保存后立即生效。</div>';
   for (var ri=0;ri<S.rewards.length;ri++){
     var rw = S.rewards[ri];
-    h += '<div class="switch"><span class="sw-t">' + rw.icon + ' ' + esc(rw.title) + '（' + (rw.multi ? (rw.perStep + '★起') : (rw.cost + '★')) + '）</span>';
-    h +=   '<span class="toggle' + (rw.on !== false ? ' on' : '') + '" onclick="toggleReward(\'' + rw.key + '\', this)"></span></div>';
+    var isMulti = !!rw.multi;
+    var stars = isMulti ? (rw.perStep || 1) : (rw.cost || 1);
+    var extra = '';
+    if (isMulti){
+      var es = (rw.key==='tv10') ? (+S.settings.tvMinPerStar||10) : (rw.key==='yuan' ? (+S.settings.yuanPerStar||1) : (rw.step||1));
+      extra = ' / ' + es + (rw.unit||'');
+    }
+    h += '<div class="switch">';
+    h +=   '<span class="sw-t">' + rw.icon + ' ' + esc(rw.title) + '</span>';
+    h +=   '<span style="display:flex;align-items:center;gap:4px;font-size:12.5px;font-weight:800;color:var(--ink2);flex:none">';
+    h +=     '<input type="number" min="1" value="' + stars + '" onchange="setRewardStars(\'' + rw.key + '\', this.value)" style="width:54px;height:32px;border-radius:10px;border:2px solid var(--line);text-align:center;font-size:14px;font-weight:900">';
+    h +=     '<span>颗星' + extra + '</span>';
+    h +=   '</span>';
+    h +=   '<span class="toggle' + (rw.on !== false ? ' on' : '') + '" onclick="toggleReward(\'' + rw.key + '\', this)"></span>';
+    h += '</div>';
   }
   h +=   '<div class="btn-row" style="margin-top:10px"><button class="btn sm mint" onclick="newRewardSheet()">➕ 上架新奖励</button></div>';
   h += '</div>';
@@ -1581,6 +1594,14 @@ function toggleReward(key, el){
   var r = rewardByKey(key); if (!r) return;
   r.on = !(r.on !== false);
   save(); sfx('tick'); renderAll(); toast(r.on ? ('已上架：' + r.title) : ('已下架：' + r.title));
+}
+// 修改某个奖励需要的星星数量：固定奖励改 cost，兑换类奖励改 perStep（每单位几颗星）
+function setRewardStars(key, val){
+  var r = rewardByKey(key); if (!r) return;
+  var n = parseInt(val, 10);
+  if (!(n > 0)){ toast('请输入大于 0 的数量'); renderMom(); return; }
+  if (r.multi){ r.perStep = n; } else { r.cost = n; }
+  save(); sfx('tick'); renderAll(); toast(r.title + '：' + (r.multi ? (n + ' 颗星 / 单位') : (n + ' 颗星')));
 }
 function newRewardSheet(){
   openSheet(
